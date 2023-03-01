@@ -1,2 +1,2 @@
 # particle-simulator
-force filed particle simulator
+force field particle simulator
