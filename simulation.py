@@ -28,6 +28,12 @@ def compute_accel_for_particles(particle_main, particle):
 
 
 class Simulation():
+    """
+    The Simulation class is the main class of this module.
+    It can generate particles, simulate their interactions, show 3D animation of those interactions 
+    and save its outputs.
+    """
+
     def __init__(self, filename: str = "simlog", n_frames: int = 100) -> None:
         self.filename = filename
         self.particles = []
@@ -35,14 +41,20 @@ class Simulation():
         self.to_time = (n_frames-1) * DT    # there is a frame zero
 
     def create_particle(self, id: int, mass: int, charge: float, acceleration: list, position: list[float]):
+        """Creates a particle object with specified characteristics in the simulation"""
         p = Particle(id, mass, charge, acceleration, position, self.particles)
         self.particles.append(p)
 
     def generate_particle(self):
+        """Generates a particle with random characteristics in default boundaries"""
         self.create_particle(id=len(self.particles), mass=1.673 * 10**-27, charge=random.randint(-3, 3), acceleration=[0, 0, 0], position=[
                              0+random.randint(-100, 100)*SM_DIST, 0+random.randint(-100, 100)*SM_DIST, 0+random.randint(-100, 100)*SM_DIST])
 
     def simulate(self):
+        """
+        Takes list of all particles in the simulation and calculates their interactions.
+        Based on these calculations writes into separate file their positions in time.
+        """
         if not self.particles:
             raise IndexError("Cannot simulate with no particles")
 
@@ -75,10 +87,15 @@ class Simulation():
         file.close()
 
     def show(self):
+        """Shows an animation based on current simulation file in a matplotlib window"""
         self._animate(path=None, show=True,
                       save_video=False, save_frames=False)
 
     def save(self, path: str = "saved/other", video: bool = True, frames: bool = True, log: bool = True):
+        """
+        Saves video, frames and/or simulation log in specified folder. 
+        If the folder doesn't exist, creates it.
+        """
         # create specified folder if it doesn't exists
         if not os.path.isdir(path):
             os.mkdir(path=path)
@@ -116,7 +133,10 @@ class Simulation():
         return crunched
 
     def _animate(self, path: str, show=True, save_video=True, save_frames=True) -> None:
-        """Works with mpl animation API to create an animation object"""
+        """
+        Works with matplotlib animation API to create an animation object.
+        If specified, can save .mp4 video and/or a folder containing every frame .png to a specified path.
+        """
         frames = self._crunch()
 
         # Create a figure and 3D axis object
@@ -129,6 +149,10 @@ class Simulation():
         ax.set_zlabel('Z-axis')
 
         def update(frame):
+            """
+            Updates the frame periodically inside the animation object. 
+            If save_frames option is specified, saves every created frame.
+            """
             ax.clear()
 
             # Set the x, y, and z limits of the axis
@@ -165,6 +189,7 @@ class Simulation():
 
 @dataclass
 class Particle:
+    """Abstraction of unspecified physical particle"""
     id: int
     mass: int
     charge: float
@@ -192,4 +217,5 @@ class Particle:
         return self.position
 
     def __str__(self):
+        """Modifies the string representation of particle for the purpose of creating headers in the simulation log."""
         return f"particle {self.id} => mass: {self.mass}, charge: {self.charge}, acceleration: {self.acceleration}, position: {self.position}"

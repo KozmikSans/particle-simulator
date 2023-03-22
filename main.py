@@ -2,7 +2,7 @@ from simulation import Simulation
 
 
 if __name__ == "__main__":
-    s = Simulation("simlog", 300)
+    s = Simulation("simlog", n_frames=300)
 
     for i in range(10):
         s.generate_particle()
