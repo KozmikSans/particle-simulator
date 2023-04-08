@@ -9,31 +9,33 @@ import random
 from vector_operations import *
 import csv
 
+# https://www.ucl.ac.uk/~ucfbasc/Theory/lenjon.html - leonard jones potential
+#simulating helium ions - sigma,epsilon and mass are helium parameters
+SIGMA = 258 * 10**-9
+EPSILON = 10.22
+HE_MASS = 6.6464731 * 10**-27
 
 K = 8.99 * 10**9
 DT = 2e-30
 SM_DIST = 6.677 * 10**-9
 
-
+# why does the LJ potential launch them like 10 kilometers away?
+# TODO: this SHIT has to be fixed lol
 def compute_accel_for_particles(particle_main, particle):
     """returns accelleration vector of a particle-particle system"""
     particle_vector = vector_through_two_coordinates(
         particle_main.position, particle.position)
     v_len = vect_to_distance(particle_vector)
-    coulomb_force = K*(particle_main.charge*particle.charge)/v_len**2
+    coulomb_force = K*-(particle_main.charge*particle.charge)/v_len**2
+    LJ_potential = (24*EPSILON/v_len**2)*((2*(SIGMA/v_len)**12)-((SIGMA/v_len)**6)) # so called leonard jones potential
+    total_force = coulomb_force - LJ_potential
     unit_vector = vect_divide(particle_vector, v_len)
-    force_coulomb_3d = vect_multiply(unit_vector, coulomb_force)
+    force_coulomb_3d = vect_multiply(unit_vector, total_force)
     accel = vect_divide(force_coulomb_3d, particle_main.mass)
     return accel
 
 
 class Simulation():
-    """
-    The Simulation class is the main class of this module.
-    It can generate particles, simulate their interactions, show 3D animation of those interactions 
-    and save its outputs.
-    """
-
     def __init__(self, filename: str = "simlog", n_frames: int = 100) -> None:
         self.filename = filename
         self.particles = []
@@ -41,20 +43,15 @@ class Simulation():
         self.to_time = (n_frames-1) * DT    # there is a frame zero
 
     def create_particle(self, id: int, mass: int, charge: float, acceleration: list, position: list[float]):
-        """Creates a particle object with specified characteristics in the simulation"""
         p = Particle(id, mass, charge, acceleration, position, self.particles)
         self.particles.append(p)
 
     def generate_particle(self):
-        """Generates a particle with random characteristics in default boundaries"""
-        self.create_particle(id=len(self.particles), mass=1.673 * 10**-27, charge=random.randint(-3, 3), acceleration=[0, 0, 0], position=[
-                             0+random.randint(-100, 100)*SM_DIST, 0+random.randint(-100, 100)*SM_DIST, 0+random.randint(-100, 100)*SM_DIST])
+        self.create_particle(id=len(self.particles), mass=HE_MASS, charge=random.choice([-1,1,2,-2]), acceleration=[0, 0, 0], position=[
+                             0+random.randint(-100, 100)*SM_DIST, 0+random.randint(-100, 100)*SM_DIST, 0+random.randint(-100, 100)*SM_DIST]) 
+
 
     def simulate(self):
-        """
-        Takes list of all particles in the simulation and calculates their interactions.
-        Based on these calculations writes into separate file their positions in time.
-        """
         if not self.particles:
             raise IndexError("Cannot simulate with no particles")
 
@@ -87,15 +84,10 @@ class Simulation():
         file.close()
 
     def show(self):
-        """Shows an animation based on current simulation file in a matplotlib window"""
         self._animate(path=None, show=True,
                       save_video=False, save_frames=False)
 
     def save(self, path: str = "saved/other", video: bool = True, frames: bool = True, log: bool = True):
-        """
-        Saves video, frames and/or simulation log in specified folder. 
-        If the folder doesn't exist, creates it.
-        """
         # create specified folder if it doesn't exists
         if not os.path.isdir(path):
             os.mkdir(path=path)
@@ -133,10 +125,7 @@ class Simulation():
         return crunched
 
     def _animate(self, path: str, show=True, save_video=True, save_frames=True) -> None:
-        """
-        Works with matplotlib animation API to create an animation object.
-        If specified, can save .mp4 video and/or a folder containing every frame .png to a specified path.
-        """
+        """Works with mpl animation API to create an animation object"""
         frames = self._crunch()
 
         # Create a figure and 3D axis object
@@ -149,10 +138,6 @@ class Simulation():
         ax.set_zlabel('Z-axis')
 
         def update(frame):
-            """
-            Updates the frame periodically inside the animation object. 
-            If save_frames option is specified, saves every created frame.
-            """
             ax.clear()
 
             # Set the x, y, and z limits of the axis
@@ -172,14 +157,14 @@ class Simulation():
             # Add a title
             plt.title(f"T: {time}")
 
-            ax.scatter(x_data, y_data, z_data, marker="o")
+            scatter = ax.scatter(x_data, y_data, z_data, marker="o")
             if save_frames:
                 fig.savefig(f"{path}/frames/frame_{frame}.png")
+            return scatter
 
         # speed of the video, saved for calculationg the fps
         interval = 25
-        animation = FuncAnimation(fig, update, frames=len(
-            frames), interval=interval, blit=True, repeat=False)
+        animation = FuncAnimation(fig, update, frames=len(frames), interval=interval, blit=False, repeat=False)
         if save_video:
             animation.save(f"{path}/animation.mp4",
                            writer="ffmpeg", fps=1000/interval)
@@ -189,7 +174,6 @@ class Simulation():
 
 @dataclass
 class Particle:
-    """Abstraction of unspecified physical particle"""
     id: int
     mass: int
     charge: float
@@ -217,5 +201,4 @@ class Particle:
         return self.position
 
     def __str__(self):
-        """Modifies the string representation of particle for the purpose of creating headers in the simulation log."""
         return f"particle {self.id} => mass: {self.mass}, charge: {self.charge}, acceleration: {self.acceleration}, position: {self.position}"
